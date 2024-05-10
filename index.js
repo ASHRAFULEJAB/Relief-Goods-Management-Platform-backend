@@ -27,6 +27,7 @@ async function run() {
 
     const db = client.db("assignment6-relief-fund");
     const fundCollection = db.collection("supplies");
+    const reliefCollection = db.collection("reliefs");
 
     // User Registration
     app.post("/api/v1/register", async (req, res) => {
@@ -84,6 +85,7 @@ async function run() {
     // ==============================================================
     // WRITE YOUR CODE HERE
     // ==============================================================
+
     app.post("/create-supply", async (req, res) => {
       const supply = req.body;
       const result = await fundCollection.insertOne(supply);
@@ -105,10 +107,23 @@ async function run() {
         data: supplies,
       });
     });
+    //  relief goods api here
+    app.get("/relief-goods", async (req, res) => {
+      const query = {};
+      const result = await reliefCollection.find(query);
+      // console.log(result);
+      const reliefs = await result.toArray();
+      res.status(200).json({
+        success: true,
+        message: "All Reliefs Fetched Successfully!",
+        data: reliefs,
+      });
+    });
 
     app.get("/relief-goods/:id", async (req, res) => {
       try {
         const id = req.params.id;
+        // console.log(id);
 
         // Check if id is a valid ObjectId
         if (!ObjectId.isValid(id)) {
@@ -117,7 +132,9 @@ async function run() {
             .json({ success: false, message: "Invalid ID" });
         }
 
-        const result = await fundCollection.findOne({ _id: new ObjectId(id) });
+        const result = await reliefCollection.findOne({
+          _id: new ObjectId(id),
+        });
 
         if (!result) {
           return res
@@ -161,8 +178,8 @@ async function run() {
       if (supply.title) {
         updateDoc.$set.title = supply.title;
       }
-      if (supply.category) {
-        updateDoc.$set.category = supply.category;
+      if (supply.description) {
+        updateDoc.$set.description = supply.description;
       }
       if (supply.amount) {
         updateDoc.$set.amount = supply.amount;
