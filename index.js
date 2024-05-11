@@ -9,8 +9,18 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://relief-fund-management.netlify.app",
+    credentials: true,
+  })
+);
 app.use(express.json());
+// Enable CORS for all requests
+// app.use((req, res, next) => {
+//   res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+//   next();
+// });
 
 // MongoDB Connection URL
 const uri = process.env.MONGODB_URI;
@@ -82,10 +92,6 @@ async function run() {
       });
     });
 
-    // ==============================================================
-    // WRITE YOUR CODE HERE
-    // ==============================================================
-
     app.post("/create-supply", async (req, res) => {
       const supply = req.body;
       const result = await fundCollection.insertOne(supply);
@@ -99,7 +105,6 @@ async function run() {
     app.get("/supplies", async (req, res) => {
       const query = {};
       const result = await fundCollection.find(query);
-      // console.log(result);
       const supplies = await result.toArray();
       res.status(200).json({
         success: true,
@@ -111,7 +116,6 @@ async function run() {
     app.get("/relief-goods", async (req, res) => {
       const query = {};
       const result = await reliefCollection.find(query);
-      // console.log(result);
       const reliefs = await result.toArray();
       res.status(200).json({
         success: true,
@@ -123,9 +127,6 @@ async function run() {
     app.get("/relief-goods/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        // console.log(id);
-
-        // Check if id is a valid ObjectId
         if (!ObjectId.isValid(id)) {
           return res
             .status(400)
@@ -141,8 +142,6 @@ async function run() {
             .status(404)
             .json({ success: false, message: "Relief not found" });
         }
-
-        // console.log(result);
         res.status(200).json({
           success: true,
           message: "Single Relief Fetched Successfully!",
@@ -159,7 +158,6 @@ async function run() {
     app.delete("/supplies/:id", async (req, res) => {
       const id = req.params.id;
       const result = await fundCollection.deleteOne({ _id: new ObjectId(id) });
-      // console.log(result);
       res.status(200).json({
         success: true,
         message: " Supplies Deleted Successfully!",
@@ -167,12 +165,10 @@ async function run() {
       });
     });
 
-    // status update
     app.put("/supplies/:id", async (req, res) => {
       const id = req.params.id;
       const supply = req.body;
 
-      // Construct update document dynamically based on the fields in the request body
       const updateDoc = { $set: {} };
 
       if (supply.title) {
@@ -185,7 +181,6 @@ async function run() {
         updateDoc.$set.amount = supply.amount;
       }
 
-      // Construct filter to identify the document to be updated
       const filter = { _id: new ObjectId(id) };
 
       try {
