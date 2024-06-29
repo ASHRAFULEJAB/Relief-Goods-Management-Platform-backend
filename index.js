@@ -7,11 +7,13 @@ const jwt = require("jsonwebtoken");
 
 const app = express();
 const port = process.env.PORT || 5000;
+//assignment-6-backend-relief-goods.vercel.app
+// https://relief-fund-management.netlify.app/
 
 // Middleware
-app.use(
+https: app.use(
   cors({
-    origin: "https://relief-fund-management.netlify.app",
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -41,7 +43,7 @@ async function run() {
 
     // User Registration
     app.post("/api/v1/register", async (req, res) => {
-      const { name, email, password } = req.body;
+      const { name, email, password,role } = req.body;
 
       // Check if email already exists
       const existingUser = await fundCollection.findOne({ email });
@@ -56,11 +58,17 @@ async function run() {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Insert user into the database
-      await collection.insertOne({ name, email, password: hashedPassword });
+      const registeredData = await fundCollection.insertOne({
+        name,
+        email,
+        password: hashedPassword,
+        role
+      });
 
       res.status(201).json({
         success: true,
         message: "User registered successfully",
+        result: registeredData,
       });
     });
 
