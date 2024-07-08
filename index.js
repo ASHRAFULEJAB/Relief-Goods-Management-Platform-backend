@@ -13,7 +13,7 @@ const port = process.env.PORT || 5000;
 // Middleware
 https: app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://relief-fund-management.netlify.app",
     credentials: true,
   })
 );
@@ -40,13 +40,15 @@ async function run() {
     const db = client.db("assignment6-relief-fund");
     const fundCollection = db.collection("supplies");
     const reliefCollection = db.collection("reliefs");
+    const userCollection = db.collection("users");
+    const projectsCollection = db.collection("allprojects");
 
     // User Registration
-    app.post("/api/v1/register", async (req, res) => {
-      const { name, email, password,role } = req.body;
+    app.post("/register", async (req, res) => {
+      const { name, email, password, role } = req.body;
 
       // Check if email already exists
-      const existingUser = await fundCollection.findOne({ email });
+      const existingUser = await userCollection.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -58,11 +60,11 @@ async function run() {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Insert user into the database
-      const registeredData = await fundCollection.insertOne({
+      const registeredData = await userCollection.insertOne({
         name,
         email,
         password: hashedPassword,
-        role
+        role,
       });
 
       res.status(201).json({
@@ -73,11 +75,51 @@ async function run() {
     });
 
     // User Login
-    app.post("/api/v1/login", async (req, res) => {
+    // app.post("/login", async (req, res) => {
+    //   const { email, password } = req.body;
+
+    //   // Find user by email
+    //   const user = await fundCollection.findOne({ email });
+    //   if (!user) {
+    //     return res.status(401).json({ message: "Invalid email or password" });
+    //   }
+
+    //   // Compare hashed password
+    //   const isPasswordValid = await bcrypt.compare(password, user.password);
+    //   if (!isPasswordValid) {
+    //     return res.status(401).json({ message: "Invalid email or password" });
+    //   }
+
+    //   // Generate JWT token
+    //   const accesstoken = jwt.sign(
+    //     { email: user.email },
+    //     process.env.JWT_SECRET,
+    //     {
+    //       expiresIn: process.env.EXPIRES_IN,
+    //     }
+    //   );
+    //   res.cookie("accesstoken", accesstoken, {
+    //     secure: process.env.NODE_ENV === "production",
+    //     httpOnly: true,
+    //     sameSite: "none",
+    //     maxAge: 1000 * 60 * 60 * 24 * 365,
+    //   });
+
+    //   res.json({
+    //     success: true,
+    //     message: "Login successful",
+    //     data: {
+    //       user,
+    //       accesstoken,
+    //     },
+    //   });
+    // });
+    // User Login
+    app.post("/login", async (req, res) => {
       const { email, password } = req.body;
 
       // Find user by email
-      const user = await fundCollection.findOne({ email });
+      const user = await userCollection.findOne({ email });
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
@@ -88,15 +130,28 @@ async function run() {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      // Generate JWT token
-      const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
-        expiresIn: process.env.EXPIRES_IN,
+      // Generate JWT token with role information
+      const accesstoken = jwt.sign(
+        { email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: process.env.EXPIRES_IN,
+        }
+      );
+      res.cookie("accesstoken", accesstoken, {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        sameSite: "none",
+        maxAge: 1000 * 60 * 60 * 24 * 365,
       });
 
       res.json({
         success: true,
         message: "Login successful",
-        token,
+        data: {
+          user,
+          accesstoken,
+        },
       });
     });
 
@@ -118,6 +173,16 @@ async function run() {
         success: true,
         message: "All Supplies Fetched Successfully!",
         data: supplies,
+      });
+    });
+    app.get("/projects", async (req, res) => {
+      const query = {};
+      const result = await projectsCollection.find(query);
+      const projects = await result.toArray();
+      res.status(200).json({
+        success: true,
+        message: "All projects Fetched Successfully!",
+        data: projects,
       });
     });
     //  relief goods api here
@@ -206,6 +271,65 @@ async function run() {
       }
     });
 
+    // projetcs
+
+    app.delete("/projects/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await projectsCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.status(200).json({
+        success: true,
+        message: "Project Deleted Successfully!",
+        result,
+      });
+    });
+
+    app.put("/projects/:id", async (req, res) => {
+      const id = req.params.id;
+      const project = req.body;
+
+      const updateDoc = { $set: {} };
+
+      if (project.name) {
+        updateDoc.$set.name = project.name;
+      }
+      if (project.description) {
+        updateDoc.$set.description = project.description;
+      }
+      if (project.startDate) {
+        updateDoc.$set.startDate = project.startDate;
+      }
+      if (project.endDate) {
+        updateDoc.$set.endDate = project.endDate;
+      }
+      if (project.status) {
+        updateDoc.$set.status = project.status;
+      }
+      if (project.amountRaised) {
+        updateDoc.$set.amountRaised = project.amountRaised;
+      }
+      if (project.targetAmount) {
+        updateDoc.$set.targetAmount = project.targetAmount;
+      }
+
+      const filter = { _id: new ObjectId(id) };
+
+      try {
+        const result = await projectsCollection.updateOne(filter, updateDoc);
+        res.status(200).json({
+          success: true,
+          message: "Project Updated Successfully!",
+          result,
+        });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+
     // Start the server
     app.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);
@@ -217,10 +341,46 @@ async function run() {
 run().catch(console.dir);
 
 // Test route
-app.get("/", (req, res) => {
-  const serverStatus = {
-    message: "Server is running smoothly",
-    timestamp: new Date(),
+const authenticateJWT = (req, res, next) => {
+  const token = req.cookies.accesstoken;
+
+  if (!token) {
+    return res.sendStatus(403);
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.sendStatus(403);
+    }
+
+    req.user = user;
+    next();
+  });
+};
+
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.sendStatus(403);
+    }
+    next();
   };
-  res.json(serverStatus);
-});
+};
+
+app.get(
+  "/dashboard/admin",
+  authenticateJWT,
+  authorizeRoles("admin"),
+  (req, res) => {
+    res.send("Admin Dashboard");
+  }
+);
+
+app.get(
+  "/dashboard/user",
+  authenticateJWT,
+  authorizeRoles("user"),
+  (req, res) => {
+    res.send("User Dashboard");
+  }
+);
