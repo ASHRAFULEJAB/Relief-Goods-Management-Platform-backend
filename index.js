@@ -17,6 +17,17 @@ https: app.use(
     credentials: true,
   })
 );
+// app.use(
+//   cors({
+//     origin: "https://relief-fund-management.netlify.app",
+//     credentials: true,
+//   })
+// );
+
+app.use((req, res, next) => {
+  console.log(`Received request: ${req.method} ${req.url}`);
+  next();
+});
 app.use(express.json());
 // Enable CORS for all requests
 // app.use((req, res, next) => {
